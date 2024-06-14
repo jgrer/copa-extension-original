@@ -13,29 +13,36 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions
+  DialogActions,
+  IconButton,
+  Grow,
+  Collapse
 } from '@mui/material';
 import { createDockerDesktopClient } from '@docker/extension-api-client';
 import { CopaInput } from './copainput';
+import { CommandLine } from './commandline';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 export function App() {
   const ddClient = createDockerDesktopClient();
 
-  const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
-  const [selectedScanner, setSelectedScanner] = React.useState<string | undefined>(undefined);
-  const [selectedImageTag, setSelectedImageTag] = React.useState<string | undefined>(undefined);
-  const [selectedTimeout, setSelectedTimeout] = React.useState<string | undefined>(undefined);
-  const [totalStdout, setTotalStdout] = React.useState("");
-  const [actualImageTag, setActualImageTag] = React.useState("");
-  const [errorText, setErrorText] = React.useState("");
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedScanner, setSelectedScanner] = useState<string | undefined>(undefined);
+  const [selectedImageTag, setSelectedImageTag] = useState<string | undefined>(undefined);
+  const [selectedTimeout, setSelectedTimeout] = useState<string | undefined>(undefined);
+  const [totalStdout, setTotalStdout] = useState("");
+  const [actualImageTag, setActualImageTag] = useState("");
+  const [errorText, setErrorText] = useState("");
 
 
-  const [inSettings, setInSettings] = React.useState(false);
-  const [showPreload, setShowPreload] = React.useState(true);
-  const [showLoading, setShowLoading] = React.useState(false);
-  const [showSuccess, setShowSuccess] = React.useState(false);
-  const [showFailure, setShowFailure] = React.useState(false);
-  const [showCopaOutputModal, setShowCopaOutputModal] = React.useState(false);
+  const [inSettings, setInSettings] = useState(false);
+  const [showPreload, setShowPreload] = useState(true);
+  const [showLoading, setShowLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showFailure, setShowFailure] = useState(false);
+  const [showCopaOutputModal, setShowCopaOutputModal] = useState(false);
+  const [showCommandLine, setShowCommandLine] = useState(false);
 
 
 
@@ -52,7 +59,7 @@ export function App() {
     setSelectedTimeout(undefined);
   }
 
-  const processError = (error : string) => {
+  const processError = (error: string) => {
     if (error.indexOf("No such image") >= 0) {
       setErrorText("Image does not exist.");
     } else {
@@ -78,7 +85,7 @@ export function App() {
       }
     }
     setActualImageTag(imageTag);
-    
+
     if (selectedImage != null) {
       let commandParts: string[] = [
         "--mount",
@@ -102,7 +109,8 @@ export function App() {
       {
         stream: {
           onOutput(data: any) {
-            stdout += (data.stdout + "\n");
+            stdout += data.stdout;
+            setTotalStdout(totalStdout + stdout)
             if (data.stderr) {
               stderr += data.stderr;
               latestStderr = data.stderr;
@@ -140,7 +148,15 @@ export function App() {
       </Box>
       <Stack sx={{ alignItems: 'center' }}>
         <CircularProgress size={100} />
-        <Typography variant="h6" sx={{ maxWidth: 400 }}>Patching Image...</Typography>
+        <Stack direction="row">
+          <IconButton aria-label="show-command-line" onClick={() => { setShowCommandLine(!showCommandLine) }}>
+            { showCommandLine ? <ExpandMoreIcon/> : <ChevronRightIcon/>}
+          </IconButton>
+          <Typography variant="h6" sx={{ maxWidth: 400 }}>Patching Image...</Typography>
+        </Stack>
+        <Collapse in={showCommandLine}>
+          <CommandLine totalStdout={totalStdout}></CommandLine>
+        </Collapse>
       </Stack>
     </Stack>
   )
