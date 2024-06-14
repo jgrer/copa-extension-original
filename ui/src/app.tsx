@@ -88,7 +88,7 @@ export function App() {
         `${selectedImage}`,
         `${imageTag}`,
         `${selectedTimeout === undefined ? "5m" : selectedTimeout}`,
-        "buildx",
+        "custom-socket",
         "openvex"
       ];
       ({ stdout, stderr } = await runCopa(commandParts, stdout, stderr));
@@ -120,7 +120,9 @@ export function App() {
               ddClient.desktopUI.toast.success(`Copacetic - Created new patched image ${selectedImage}-${actualImageTag}`);
             } else {
               setShowFailure(true);
-              ddClient.desktopUI.toast.error(`Copacetic - Failed to patch ${selectedImage}: ${res.stderr}`);
+              ddClient.desktopUI.toast.error(`Copacetic - Failed to patch ${selectedImage}: ${latestStderr}`);
+              alert(stdout);
+              alert(stderr);
               processError(latestStderr);
             }
           },
