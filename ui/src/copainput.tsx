@@ -63,6 +63,19 @@ export function CopaInput(props: any) {
       setSelectedImageHelperText("Image input can not have whitespace.")
     }
 
+    let seperateSplit = props.selectedImage.split(':');
+    let numColons = seperateSplit.length - 1;
+
+    if (numColons > 1) {
+      foundError = true;
+      setSelectedImageHelperText("Image input can only have one colon.");
+    } else {
+      if (seperateSplit[0].length === 0) {
+        foundError = true;
+        setSelectedImageHelperText("Image input can not be a tag only.")
+      }
+    }
+
     if (foundError) {
       setSelectedImageError(true);
     } else {

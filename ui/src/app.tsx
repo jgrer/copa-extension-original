@@ -26,6 +26,8 @@ export function App() {
   const [selectedImageTag, setSelectedImageTag] = React.useState<string | undefined>(undefined);
   const [selectedTimeout, setSelectedTimeout] = React.useState<string | undefined>(undefined);
   const [totalStdout, setTotalStdout] = React.useState("");
+  const [actualImageTag, setActualImageTag] = React.useState("");
+  const [errorText, setErrorText] = React.useState("");
 
 
   const [inSettings, setInSettings] = React.useState(false);
@@ -50,9 +52,33 @@ export function App() {
     setSelectedTimeout(undefined);
   }
 
+  const processError = (error : string) => {
+    if (error.indexOf("No such image") >= 0) {
+      setErrorText("Image does not exist.");
+    } else {
+      setErrorText("Undefined error.");
+    }
+  }
+
   async function triggerCopa() {
     let stdout = "";
     let stderr = "";
+
+
+    let imageTag = "";
+    // Create the correct tag for the image
+    if (selectedImage !== null) {
+      let imageSplit = selectedImage.split(':');
+      if (selectedImageTag !== undefined) {
+        imageTag = selectedImageTag;
+      } else if (imageSplit?.length === 1) {
+        imageTag = `latest-patched`;
+      } else {
+        imageTag = `${imageSplit[1]}-patched`;
+      }
+    }
+    setActualImageTag(imageTag);
+    
     if (selectedImage != null) {
       let commandParts: string[] = [
         "--mount",
@@ -60,7 +86,7 @@ export function App() {
         // "--name=copa-extension",
         "copa-extension",
         `${selectedImage}`,
-        `${selectedImageTag === undefined ? `${selectedImage.split(':')[1]}-patched` : selectedImageTag}`,
+        `${imageTag}`,
         `${selectedTimeout === undefined ? "5m" : selectedTimeout}`,
         "buildx",
         "openvex"
@@ -70,7 +96,7 @@ export function App() {
   }
 
   async function runCopa(commandParts: string[], stdout: string, stderr: string) {
-    let latestStdout: string = "";
+    let latestStderr: string = "";
     await ddClient.docker.cli.exec(
       "run", commandParts,
       {
@@ -79,24 +105,23 @@ export function App() {
             stdout += (data.stdout + "\n");
             if (data.stderr) {
               stderr += data.stderr;
-              latestStdout = data.stderr;
+              latestStderr = data.stderr;
             }
           },
           onError(error: any) {
-            setTotalStdout(stdout);
-            console.error(error);
+            // Not sure what do to with this.
           },
           onClose(exitCode: number) {
             setShowLoading(false);
             setTotalStdout(stdout);
             var res = { stdout: stdout, stderr: stderr };
             if (exitCode == 0) {
-              processResult(res);
               setShowSuccess(true);
-              ddClient.desktopUI.toast.success(`Copacetic - Created new patched image ${selectedImage}-patched`);
+              ddClient.desktopUI.toast.success(`Copacetic - Created new patched image ${selectedImage}-${actualImageTag}`);
             } else {
               setShowFailure(true);
-              ddClient.desktopUI.toast.error(`Copacetic - Failed to patch ${selectedImage}: ${latestStdout}`);
+              ddClient.desktopUI.toast.error(`Copacetic - Failed to patch ${selectedImage}: ${res.stderr}`);
+              processError(latestStderr);
             }
           },
         },
@@ -105,19 +130,15 @@ export function App() {
     return { stdout, stderr };
   }
 
-  const processResult = (res: object) => {
-
-  }
-
   const loadingPage = (
     <Stack direction="row" alignContent="center" alignItems="center">
       <Box
         width={80}
       >
       </Box>
-      <Stack>
+      <Stack sx={{ alignItems: 'center' }}>
         <CircularProgress size={100} />
-        <Typography align='center' variant="h6" sx={{ maxWidth: 400 }}>Patching Image...</Typography>
+        <Typography variant="h6" sx={{ maxWidth: 400 }}>Patching Image...</Typography>
       </Stack>
     </Stack>
   )
@@ -153,7 +174,7 @@ export function App() {
       />
       <Box>
         <Typography align='center' variant="h6">Failed to patch {selectedImage}:</Typography>
-        <Typography align='center' variant="h6">error here</Typography>
+        <Typography align='center' variant="h6">{errorText}</Typography>
       </Box>
       <Stack direction="row" spacing={2}>
         <Button onClick={() => {
@@ -184,7 +205,11 @@ export function App() {
             <Typography align='center' variant="h6">Directly patch containers quickly</Typography>
             <Typography align='center' variant="h6">without going upstream for a full rebuild.</Typography>
           </Stack>
-          <Link href="https://project-copacetic.github.io/copacetic/website/">LEARN MORE</Link>
+          <Link onClick={() => {
+            ddClient.host.openExternal(
+              "https://project-copacetic.github.io/copacetic/website/"
+            )
+          }}>LEARN MORE</Link>
         </Stack>
         <Divider orientation="vertical" variant="middle" flexItem />
         {showPreload &&
